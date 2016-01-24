@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8' />
+    <title></title>
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.12.4/mapbox-gl.js'></script>
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.12.4/mapbox-gl.css' rel='stylesheet' />
+    <style>
+        body { margin:0; padding:0; }
+        #map { position:absolute; top:0; bottom:0; width:100%; }
+    </style>
+</head>
+<body>
+
+<div id='map'></div>
+
+<style>
+    .mapboxgl-popup {
+        max-width: 400px;
+        font: 12px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
+    }
+
+    .marker-title {
+        font-weight: 700;
+    }
+</style>
+
+<script>
+		var breaks = [3, 6, 9, 12, 16]; //break points denoting data sould be a new color
+		var colors = ['blue','cyan','lime','yellow','red']; //colors to use in the data-driven style
+		var layers = []; //bucket to hold our data layers.  We'll fill this in next.
+		var filters = []; //array to hold our filter layers.  We'll fill this in next.
+
+		function calcHeatFilters(breaks, param) {
+		    //calculate filters to apply to sheet (first run only)
+		    filters = [];
+		    for (var p = 0; p < breaks.length; p++) {
+		      if (p<=0) {
+		        filters.push([ 'all',
+		          [ '<', param, breaks[p + 1] ]
+		        ])
+		      }
+		      else if (p < breaks.length - 1) {
+		        filters.push([ 'all',
+		          [ '>=', param, breaks[p] ],
+		          [ '<', param, breaks[p + 1] ]
+		        ])
+		      } else {
+		        filters.push([ 'all',
+		          [ '>=', param, breaks[p] ]
+		        ])
+		      }
+		  }
+		}
+
+		function calcHeatLayers(filters, colors) {
+		    //create layers with filters
+		    layers = [];
+		    for (var p = 0; p < breaks.length; p++) {
+		    layers.push({
+		        id: 'points-' + p,
+		        type: 'circle',
+		        source: 'geojson',
+		        "interactive": true,
+		        paint: {"circle-color": colors[p],
+		                "circle-opacity" : 1,
+		                "circle-radius" : 10,
+		                "circle-blur" : 0.5
+		        },
+		        filter: filters[p]
+		      })
+		    }
+		}
+	    calcHeatFilters(breaks, 's'); //calc the filters based on a data parm
+		calcHeatLayers(filters, colors); //calc the layers
+
+		if (!mapboxgl.supported()) {
+		    //stop and alert user map is not supported
+		    alert('Your browser does not support Mapbox GL.  Please try Chrome or Firefox.');
+		} else {
+			mapboxgl.accessToken = <INSERT YOUR MAPBOX GL API KEY HERE>;
+		    var map = new mapboxgl.Map({
+			    container: 'map', // container id
+			    style: 'mapbox://styles/mapbox/dark-v8', //stylesheet location
+			    center: [-89.948470, 40.783860], // starting position
+			    zoom: 12 // starting zoom 
+			});
+		}
+
+		map.once('style.load', function() {
+		    geojson_src = new mapboxgl.GeoJSONSource({
+		          data: geojsonData,
+		          maxzoom: 16,
+		          buffer: 10,
+		          tolerance: 10
+		      });
+		      map.addSource('geojson', geojson_src);
+		      map.batch(function (batch) { //add each layer to the map in a batch
+		        for (var p = 0; p < layers.length; p++) {
+		          batch.addLayer(layers[p]);
+		        }
+		    });
+		});
+
+		//add popup for clarity about what we're displaying with this data driven style
+		var popup = new mapboxgl.Popup({
+		    closeButton: false,
+		    closeOnClick: false
+		});
+
+		map.on('mousemove', function(e) {
+			for (var p = 0; p < layers.length; p++) {
+			    map.featuresAt(e.point, {
+			        radius: 20, // Half the marker size (15px).
+			        includeGeometry: true,
+			        layer: 'points-' + p
+			    }, function(err, features) {
+			        // Change the cursor style as a UI indicator.
+			        var feature = features[0];
+			        // Initialize a popup and set its coordinates and add speed pointer
+			        if (!err && features.length) {
+			        	map.getCanvas().style.cursor = (!err && features.length) ? 'pointer' : '';
+				        popup.setLngLat(feature.geometry.coordinates)
+				            .setHTML('speed: ' + feature.properties.s)
+				            .addTo(map);
+				    }
+			    });
+		    }
+		});
+
+		var geojsonData = JSON.parse(<your geojson point layer here>);
+        </script>
+
+	</body>
+</html>
