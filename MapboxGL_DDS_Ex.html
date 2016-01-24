@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8' />
+    <title></title>
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.12.4/mapbox-gl.js'></script>
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.12.4/mapbox-gl.css' rel='stylesheet' />
+    <style>
+        body { margin:0; padding:0; }
+        #map { position:absolute; top:0; bottom:0; width:100%; }
+    </style>
+</head>
+<body>
+
+<div id='map'></div>
+
+<style>
+    .mapboxgl-popup {
+        max-width: 400px;
+        font: 12px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
+    }
+
+    .marker-title {
+        font-weight: 700;
+    }
+</style>
+
+<script>
+		var breaks = [3, 6, 9, 12, 16]; //break points denoting data sould be a new color
+		var colors = ['blue','cyan','lime','yellow','red']; //colors to use in the data-driven style
+		var layers = []; //bucket to hold our data layers.  We'll fill this in next.
+		var filters = []; //array to hold our filter layers.  We'll fill this in next.
+
+		function calcHeatFilters(breaks, param) {
+		    //calculate filters to apply to sheet (first run only)
+		    filters = [];
+		    for (var p = 0; p < breaks.length; p++) {
+		      if (p<=0) {
+		        filters.push([ 'all',
+		          [ '<', param, breaks[p + 1] ]
+		        ])
+		      }
+		      else if (p < breaks.length - 1) {
+		        filters.push([ 'all',
+		          [ '>=', param, breaks[p] ],
+		          [ '<', param, breaks[p + 1] ]
+		        ])
+		      } else {
+		        filters.push([ 'all',
+		          [ '>=', param, breaks[p] ]
+		        ])
+		      }
+		  }
+		}
+
+		function calcHeatLayers(filters, colors) {
+		    //create layers with filters
+		    layers = [];
+		    for (var p = 0; p < breaks.length; p++) {
+		    layers.push({
+		        id: 'points-' + p,
+		        type: 'circle',
+		        source: 'geojson',
+		        "interactive": true,
+		        paint: {"circle-color": colors[p],
+		                "circle-opacity" : 1,
+		                "circle-radius" : 10,
+		                "circle-blur" : 0.5
+		        },
+		        filter: filters[p]
+		      })
+		    }
+		}
+	    calcHeatFilters(breaks, 's'); //calc the filters based on a data parm
+		calcHeatLayers(filters, colors); //calc the layers
+
+		if (!mapboxgl.supported()) {
+		    //stop and alert user map is not supported
+		    alert('Your browser does not support Mapbox GL.  Please try Chrome or Firefox.');
+		} else {
+			mapboxgl.accessToken = 'pk.eyJ1IjoicnNiYXVtYW5uIiwiYSI6IjdiOWEzZGIyMGNkOGY3NWQ4ZTBhN2Y5ZGU2Mzg2NDY2In0.jycgv7qwF8MMIWt4cT0RaQ';
+		    var map = new mapboxgl.Map({
+			    container: 'map', // container id
+			    style: 'mapbox://styles/mapbox/dark-v8', //stylesheet location
+			    center: [-89.948470, 40.783860], // starting position
+			    zoom: 12 // starting zoom 
+			});
+		}
+
+		map.once('style.load', function() {
+		    geojson_src = new mapboxgl.GeoJSONSource({
+		          data: geojsonData,
+		          maxzoom: 16,
+		          buffer: 10,
+		          tolerance: 10
+		      });
+		      map.addSource('geojson', geojson_src);
+		      map.batch(function (batch) { //add each layer to the map in a batch
+		        for (var p = 0; p < layers.length; p++) {
+		          batch.addLayer(layers[p]);
+		        }
+		    });
+		});
+
+		//add popup for clarity about what we're displaying with this data driven style
+		var popup = new mapboxgl.Popup({
+		    closeButton: false,
+		    closeOnClick: false
+		});
+
+		map.on('mousemove', function(e) {
+			for (var p = 0; p < layers.length; p++) {
+			    map.featuresAt(e.point, {
+			        radius: 20, // Half the marker size (15px).
+			        includeGeometry: true,
+			        layer: 'points-' + p
+			    }, function(err, features) {
+			        // Change the cursor style as a UI indicator.
+			        var feature = features[0];
+			        // Initialize a popup and set its coordinates and add speed pointer
+			        if (!err && features.length) {
+			        	map.getCanvas().style.cursor = (!err && features.length) ? 'pointer' : '';
+				        popup.setLngLat(feature.geometry.coordinates)
+				            .setHTML('speed: ' + feature.properties.s)
+				            .addTo(map);
+				    }
+			    });
+		    }
+		});
+
+		var geojsonData = JSON.parse('{"features": [{"properties": {"g": 1.8, "d": 1.0, "s": 11.5}, "type": "Feature", "geometry": {"coordinates": [-89.967546, 40.771415], "type": "Point"}}, {"properties": {"g": 3.3, "d": 1.0, "s": 10.1}, "type": "Feature", "geometry": {"coordinates": [-89.967538, 40.772554], "type": "Point"}}, {"properties": {"g": 0.0, "d": 1.0, "s": 8.9}, "type": "Feature", "geometry": {"coordinates": [-89.967546, 40.773719], "type": "Point"}}, {"properties": {"g": 1.3, "d": 1.0, "s": 10.2}, "type": "Feature", "geometry": {"coordinates": [-89.967545, 40.774924], "type": "Point"}}, {"properties": {"g": 2.3, "d": 1.0, "s": 6.6}, "type": "Feature", "geometry": {"coordinates": [-89.9675, 40.776102], "type": "Point"}}, {"properties": {"g": 2.0, "d": 1.0, "s": 13.7}, "type": "Feature", "geometry": {"coordinates": [-89.966551, 40.76434], "type": "Point"}}, {"properties": {"g": 1.8, "d": 1.0, "s": 13.3}, "type": "Feature", "geometry": {"coordinates": [-89.966723, 40.765533], "type": "Point"}}, {"properties": {"g": 1.7, "d": 1.0, "s": 13.1}, "type": "Feature", "geometry": {"coordinates": [-89.966914, 40.766717], "type": "Point"}}, {"properties": {"g": 1.1, "d": 1.0, "s": 13.1}, "type": "Feature", "geometry": {"coordinates": [-89.967076, 40.767901], "type": "Point"}}, {"properties": {"g": 0.6, "d": 1.0, "s": 12.9}, "type": "Feature", "geometry": {"coordinates": [-89.967248, 40.769054], "type": "Point"}}, {"properties": {"g": 0.0, "d": 1.0, "s": 12.1}, "type": "Feature", "geometry": {"coordinates": [-89.967419, 40.770267], "type": "Point"}}, {"properties": {"g": 0.5, "d": 1.0, "s": 4.9}, "type": "Feature", "geometry": {"coordinates": [-89.967478, 40.777242], "type": "Point"}}, {"properties": {"g": 1.6, "d": 1.0, "s": 4.4}, "type": "Feature", "geometry": {"coordinates": [-89.967288, 40.777931], "type": "Point"}}, {"properties": {"g": 1.2, "d": 1.0, "s": 7.7}, "type": "Feature", "geometry": {"coordinates": [-89.966395, 40.756184], "type": "Point"}}, {"properties": {"g": 1.9, "d": 1.0, "s": 8.8}, "type": "Feature", "geometry": {"coordinates": [-89.966327, 40.757332], "type": "Point"}}, {"properties": {"g": 0.7, "d": 1.0, "s": 9.6}, "type": "Feature", "geometry": {"coordinates": [-89.966293, 40.758486], "type": "Point"}}, {"properties": {"g": 0.9, "d": 1.0, "s": 10.8}, "type": "Feature", "geometry": {"coordinates": [-89.966246, 40.759705], "type": "Point"}}, {"properties": {"g": 1.3, "d": 1.0, "s": 11.5}, "type": "Feature", "geometry": {"coordinates": [-89.9662, 40.760827], "type": "Point"}}, {"properties": {"g": 1.6, "d": 1.0, "s": 12.3}, "type": "Feature", "geometry": {"coordinates": [-89.966248, 40.762024], "type": "Point"}}, {"properties": {"g": 2.1, "d": 1.0, "s": 12.9}, "type": "Feature", "geometry": {"coordinates": [-89.966407, 40.763255], "type": "Point"}}, {"properties": {"g": 0.8, "d": 1.0, "s": 5.7}, "type": "Feature", "geometry": {"coordinates": [-89.966067, 40.778228], "type": "Point"}}, {"properties": {"g": 2.1, "d": 1.0, "s": 8.0}, "type": "Feature", "geometry": {"coordinates": [-89.96605, 40.779393], "type": "Point"}}, {"properties": {"g": 0.9, "d": 1.0, "s": 8.5}, "type": "Feature", "geometry": {"coordinates": [-89.966018, 40.780552], "type": "Point"}}, {"properties": {"g": 4.3, "d": 1.0, "s": 6.9}, "type": "Feature", "geometry": {"coordinates": [-89.965799, 40.781634], "type": "Point"}}, {"properties": {"g": 2.0, "d": 1.0, "s": 10.8}, "type": "Feature", "geometry": {"coordinates": [-89.965145, 40.755891], "type": "Point"}}, {"properties": {"g": 0.8, "d": 1.0, "s": 9.9}, "type": "Feature", "geometry": {"coordinates": [-89.963548, 40.755888], "type": "Point"}}, {"properties": {"g": 1.7, "d": 1.0, "s": 9.9}, "type": "Feature", "geometry": {"coordinates": [-89.96424, 40.781611], "type": "Point"}}, {"properties": {"g": 1.1, "d": 1.0, "s": 9.5}, "type": "Feature", "geometry": {"coordinates": [-89.962732, 40.781612], "type": "Point"}}, {"properties": {"g": 1.3, "d": 1.0, "s": 9.7}, "type": "Feature", "geometry": {"coordinates": [-89.962012, 40.755865], "type": "Point"}}, {"properties": {"g": 0.5, "d": 1.0, "s": 9.7}, "type": "Feature", "geometry": {"coordinates": [-89.960511, 40.755836], "type": "Point"}}, {"properties": {"g": 3.8, "d": 1.0, "s": 8.1}, "type": "Feature", "geometry": {"coordinates": [-89.961181, 40.78161], "type": "Point"}}, {"properties": {"g": 1.4, "d": 1.0, "s": 6.6}, "type": "Feature", "geometry": {"coordinates": [-89.959605, 40.781641], "type": "Point"}}, {"properties": {"g": 0.3, "d": 1.0, "s": 9.4}, "type": "Feature", "geometry": {"coordinates": [-89.958875, 40.755827], "type": "Point"}}, {"properties": {"g": 0.3, "d": 1.0, "s": 7.6}, "type": "Feature", "geometry": {"coordinates": [-89.958064, 40.781625], "type": "Point"}}, {"properties": {"g": 0.0, "d": 1.0, "s": 9.7}, "type": "Feature", "geometry": {"coordinates": [-89.95735, 40.755824], "type": "Point"}}, {"properties": {"g": 1.0, "d": 1.0, "s": 7.6}, "type": "Feature", "geometry": {"coordinates": [-89.956534, 40.781604], "type": "Point"}}, {"properties": {"g": 0.6, "d": 1.0, "s": 8.8}, "type": "Feature", "geometry": {"coordinates": [-89.95577, 40.75582], "type": "Point"}}, {"properties": {"g": 0.6, "d": 2.0, "s": 8.4}, "type": "Feature", "geometry": {"coordinates": [-89.9547285, 40.7820405], "type": "Point"}}, {"properties": {"g": 0.9, "d": 1.0, "s": 8.2}, "type": "Feature", "geometry": {"coordinates": [-89.954241, 40.755819], "type": "Point"}}, {"properties": {"g": 6.6, "d": 1.0, "s": 10.2}, "type": "Feature", "geometry": {"coordinates": [-89.953693, 40.783429], "type": "Point"}}, {"properties": {"g": 3.1, "d": 1.0, "s": 8.5}, "type": "Feature", "geometry": {"coordinates": [-89.952694, 40.755826], "type": "Point"}}, {"properties": {"g": 3.9, "d": 1.0, "s": 13.2}, "type": "Feature", "geometry": {"coordinates": [-89.952225, 40.783899], "type": "Point"}}, {"properties": {"g": 0.5, "d": 1.0, "s": 10.6}, "type": "Feature", "geometry": {"coordinates": [-89.951224, 40.755808], "type": "Point"}}, {"properties": {"g": 8.3, "d": 1.0, "s": 12.4}, "type": "Feature", "geometry": {"coordinates": [-89.950813, 40.784317], "type": "Point"}}, {"properties": {"g": 1.9, "d": 1.0, "s": 10.2}, "type": "Feature", "geometry": {"coordinates": [-89.94958, 40.755832], "type": "Point"}}, {"properties": {"g": 6.1, "d": 1.0, "s": 9.0}, "type": "Feature", "geometry": {"coordinates": [-89.949371, 40.784753], "type": "Point"}}, {"properties": {"g": 1.4, "d": 1.0, "s": 8.7}, "type": "Feature", "geometry": {"coordinates": [-89.948085, 40.755837], "type": "Point"}}, {"properties": {"g": 2.1, "d": 1.0, "s": 7.1}, "type": "Feature", "geometry": {"coordinates": [-89.947893, 40.785165], "type": "Point"}}, {"properties": {"g": 0.0, "d": 1.0, "s": 8.5}, "type": "Feature", "geometry": {"coordinates": [-89.946524, 40.755831], "type": "Point"}}, {"properties": {"g": 3.4, "d": 1.0, "s": 6.6}, "type": "Feature", "geometry": {"coordinates": [-89.946859, 40.785711], "type": "Point"}}, {"properties": {"g": 2.5, "d": 1.0, "s": 9.2}, "type": "Feature", "geometry": {"coordinates": [-89.946804, 40.786876], "type": "Point"}}, {"properties": {"g": 3.2, "d": 1.0, "s": 7.1}, "type": "Feature", "geometry": {"coordinates": [-89.946855, 40.788038], "type": "Point"}}, {"properties": {"g": 0.3, "d": 1.0, "s": 8.6}, "type": "Feature", "geometry": {"coordinates": [-89.94685, 40.789208], "type": "Point"}}, {"properties": {"g": 1.1, "d": 1.0, "s": 8.8}, "type": "Feature", "geometry": {"coordinates": [-89.946853, 40.790425], "type": "Point"}}, {"properties": {"g": 1.9, "d": 1.0, "s": 9.2}, "type": "Feature", "geometry": {"coordinates": [-89.946837, 40.791563], "type": "Point"}}, {"properties": {"g": 0.0, "d": 1.0, "s": 3.5}, "type": "Feature", "geometry": {"coordinates": [-89.946858, 40.792696], "type": "Point"}}, {"properties": {"g": 1.5, "d": 1.0, "s": 8.5}, "type": "Feature", "geometry": {"coordinates": [-89.946911, 40.79388], "type": "Point"}}, {"properties": {"g": 2.4, "d": 1.0, "s": 8.7}, "type": "Feature", "geometry": {"coordinates": [-89.946878, 40.795037], "type": "Point"}}, {"properties": {"g": 2.6, "d": 1.0, "s": 7.5}, "type": "Feature", "geometry": {"coordinates": [-89.946848, 40.796218], "type": "Point"}}, {"properties": {"g": 0.3, "d": 1.0, "s": 7.4}, "type": "Feature", "geometry": {"coordinates": [-89.946825, 40.79736], "type": "Point"}}, {"properties": {"g": 1.2, "d": 1.0, "s": 8.3}, "type": "Feature", "geometry": {"coordinates": [-89.946845, 40.798545], "type": "Point"}}, {"properties": {"g": 2.1, "d": 1.0, "s": 9.5}, "type": "Feature", "geometry": {"coordinates": [-89.946905, 40.799727], "type": "Point"}}, {"properties": {"g": 1.1, "d": 1.0, "s": 9.6}, "type": "Feature", "geometry": {"coordinates": [-89.946991, 40.800931], "type": "Point"}}, {"properties": {"g": 1.4, "d": 1.0, "s": 9.1}, "type": "Feature", "geometry": {"coordinates": [-89.946978, 40.802073], "type": "Point"}}, {"properties": {"g": 0.3, "d": 1.0, "s": 9.1}, "type": "Feature", "geometry": {"coordinates": [-89.94699, 40.803283], "type": "Point"}}, {"properties": {"g": 0.0, "d": 1.0, "s": 9.6}, "type": "Feature", "geometry": {"coordinates": [-89.94697, 40.804471], "type": "Point"}}, {"properties": {"g": 1.8, "d": 1.0, "s": 10.0}, "type": "Feature", "geometry": {"coordinates": [-89.946961, 40.8056], "type": "Point"}}, {"properties": {"g": 4.0, "d": 1.0, "s": 12.5}, "type": "Feature", "geometry": {"coordinates": [-89.946991, 40.806803], "type": "Point"}}, {"properties": {"g": 0.2, "d": 1.0, "s": 11.6}, "type": "Feature", "geometry": {"coordinates": [-89.946977, 40.808], "type": "Point"}}, {"properties": {"g": 5.3, "d": 1.0, "s": 9.8}, "type": "Feature", "geometry": {"coordinates": [-89.94698, 40.809133], "type": "Point"}}, {"properties": {"g": 1.7, "d": 1.0, "s": 8.7}, "type": "Feature", "geometry": {"coordinates": [-89.946987, 40.810309], "type": "Point"}}, {"properties": {"g": 2.1, "d": 1.0, "s": 8.2}, "type": "Feature", "geometry": {"coordinates": [-89.946991, 40.811451], "type": "Point"}}, {"properties": {"g": 2.3, "d": 1.0, "s": 9.7}, "type": "Feature", "geometry": {"coordinates": [-89.946989, 40.812636], "type": "Point"}}, {"properties": {"g": 0.3, "d": 1.0, "s": 9.2}, "type": "Feature", "geometry": {"coordinates": [-89.946995, 40.813806], "type": "Point"}}, {"properties": {"g": 2.7, "d": 1.0, "s": 5.1}, "type": "Feature", "geometry": {"coordinates": [-89.94644, 40.814602], "type": "Point"}}, {"properties": {"g": 1.2, "d": 1.0, "s": 7.8}, "type": "Feature", "geometry": {"coordinates": [-89.944967, 40.755808], "type": "Point"}}, {"properties": {"g": 2.6, "d": 1.0, "s": 7.3}, "type": "Feature", "geometry": {"coordinates": [-89.944825, 40.814576], "type": "Point"}}, {"properties": {"g": 1.8, "d": 1.0, "s": 8.4}, "type": "Feature", "geometry": {"coordinates": [-89.943459, 40.755807], "type": "Point"}}, {"properties": {"g": 1.6, "d": 1.0, "s": 9.5}, "type": "Feature", "geometry": {"coordinates": [-89.943327, 40.814584], "type": "Point"}}], "type": "FeatureCollection"}');
+		</script>
+
+	</body>
+</html>
