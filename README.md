@@ -1,3 +1,7 @@
+# Depricated!
+
+Mapbox GL JS now has native data driven styling that is much easier to implement and more performant - check it out here https://www.mapbox.com/mapbox-gl-js/example/data-driven-circle-colors/
+
 ## Data Driven Style Example in Mapbox GL Javascript API
 
 
